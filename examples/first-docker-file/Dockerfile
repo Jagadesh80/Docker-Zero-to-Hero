@@ -1,16 +1,37 @@
-FROM ubuntu:latest
+# --- Stage 1: Build Stage ---
+FROM ubuntu:latest as builder
 
-# Set the working directory in the image
+# Set working directory
 WORKDIR /app
 
-# Copy the files from the host file system to the image file system
+# Copy files into the build container
 COPY . /app
 
-# Install the necessary packages
+# Install build dependencies
 RUN apt-get update && apt-get install -y python3 python3-pip
 
-# Set environment variables
+# Install Python packages into /install directory
+RUN pip3 install --upgrade pip && \
+    pip3 install -r requirements.txt --target /install
+
+# --- Stage 2: Final Image ---
+FROM ubuntu:latest
+
+# Set environment variable
 ENV NAME World
 
-# Run a command to start the application
+# Set working directory
+WORKDIR /app
+
+# Install only runtime dependencies
+RUN apt-get update && apt-get install -y python3
+
+# Copy app source code from build stage
+COPY --from=builder /app /app
+
+# Copy installed python packages from builder stage
+COPY --from=builder /install /usr/local/lib/python3.10/dist-packages
+
+# Set the default command
 CMD ["python3", "app.py"]
+
